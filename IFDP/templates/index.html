@@ -1,0 +1,153 @@
+<html>
+	<head>
+		<title>{{t}}</title>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.2/css/bootstrap-select.min.css">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.2/js/bootstrap-select.min.js"></script>
+        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+		<style>
+			.indicator {
+				font-weight: bold;
+				text-align: right;
+				color: #464e56;
+			}
+		</style>
+    </head>
+<body>
+	<div class="row">
+		<!-- <div class="col text-light bg-dark" style="margin:20px 0px 20px 0px"> -->
+		<div class="p-3 mb-2 bg-dark text-white">
+			<img src="static/images/logo.png" style="width:150px; margin-left:40px">
+			<!-- <h1 style="font-family:'HelveticaNeue-Light';color: azure;font-size:35px;margin:30px;margin-left: 50px;">IFTP</h1> -->
+		</div>
+	</div>
+	<div class="p-3 mb-2 bg-light text-dark" style="height:110px;">
+		<div class="row" style="margin: 25px;margin-left: 40px;">
+			<div class="col-md-1" style="padding-top: 5px;">Ticker:</div>
+			<div class="col-md-2">
+				<select id="stock" class="form-control selectpicker" data-live-search="true">
+					{% for ticker in tickerList %}
+						<option data-tokens={{ticker}}>{{ticker}}</option>
+					{% endfor %}
+				</select>
+			</div>
+			<div class="col-md-1"></div>
+			<div class="col-md-1" style="padding-top: 5px;">Period:</div>
+			<div class="col-md-2">
+				<select id="period" class="form-control selectpicker">
+					<option selected data-tokens="day" value="day">1 day</option>
+					<option data-tokens="week" value="week">1 week</option>
+				</select>
+			</div>
+			<div class="col-md-1"></div>
+			<div class="col-md-1" style="margin-right: 50px;">
+				<button type="button" class="btn btn-primary" style="width: 100px;" onclick="callback()">Fetch</button>
+			</div>
+			<div class="col-md-1">
+				<button type="button" class="btn btn-primary" style="width: 100px;" onclick="predict()">Predict</button>
+			</div>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-md-4" style="margin-left: 20px;">
+			<div class="row" style="margin-top: 90px;"></div>
+			<div class="row">
+				<div class="col-md-1"> </div>
+				<div class="col-md-3"> Last Price</div>
+				<div class="col-md-2">
+					<span id="lastPrice" class="indicator">N/A</span>
+				</div>
+				<div class="col-md-1"> </div>
+				<div class="col-md-3"> Avg Price</div>
+				<div class="col-md-2">
+					<span id="meanPrice" class="indicator">N/A</span>
+				</div>
+			</div>
+			<hr>
+			<div class="row">
+				<div class="col-md-1"> </div>
+				<div class="col-md-3"> Day High</div>
+				<div class="col-md-2">
+					<span id="dayHigh" class="indicator">N/A</span>
+				</div>
+				<div class="col-md-1"> </div>
+				<div class="col-md-3"> Day Low</div>
+				<div class="col-md-2">
+					<span id="dayLow"  class="indicator">N/A</span>
+				</div>
+			</div>
+			<hr>
+			<div class="row">
+				<div class="col-md-1"> </div>
+				<div class="col-md-3"> Volume</div>
+				<div class="col-md-2">
+					<span id="meanVol" class="indicator">N/A</span>
+				</div>
+				<div class="col-md-1"> </div>
+				<div class="col-md-3"> Open</div>
+				<div class="col-md-2">
+					<span id="open" class="indicator">N/A</span>
+				</div>
+			</div>
+		</div>
+		<div class="col-md-7" style="margin-left:20px;margin-top: -40px;">
+			<div id="chart" class="chart" style="width:800px;height: 400px;margin:30px"></div>
+		</div>
+	</div>
+	<script>
+        $(document).ready(function(){
+            $('.selectpicker').selectpicker();
+        });
+		async function callback() {
+			let Ticker = document.getElementById('stock').value;
+            let Period = document.getElementById('period').value;
+            let response = await fetch("/callback/getStock?data=" + Ticker + "&period=" + Period);
+			if (response.ok) {
+				let chartJson = await response.json();
+				if (response.ok) {
+					Plotly.newPlot('chart', chartJson, {});
+					response = await fetch("/callback/getIndicator?data=" + Ticker + "&period=" + Period);
+                    let infoJson = await response.json();
+                    indicator(infoJson);
+				}else {
+					alert("HTTP-Error: " + response.status + "on getIndicator");
+				}
+			} else {
+                alert("HTTP-Error: " + response.status + "on getStock");
+            }
+		}
+
+		function indicator(json) {
+            let name = document.getElementById('lastPrice');
+            name.innerHTML = json.meanPrice;
+            name = document.getElementById('meanPrice');
+			name.innerHTML = json.lastPrice;
+            name = document.getElementById('dayHigh');
+            name.innerHTML = json.dayHigh;
+            name = document.getElementById('dayLow');
+            name.innerHTML = json.dayLow;
+            name = document.getElementById('meanVol');
+            name.innerHTML = json.meanVol;
+            name = document.getElementById('open');
+            name.innerHTML = json.open;
+        }
+
+		async function predict() {
+			let Ticker = document.getElementById('stock').value;
+            console.log(Ticker);
+            let response = await fetch("/callback/predict?data=" + Ticker);
+			if (response.ok) {
+				let chartJson = await response.json();
+				Plotly.newPlot('chart', chartJson, {});
+			} else {
+                alert("HTTP-Error: " + response.status + "on getStock");
+            }
+		}
+
+		callback();
+	</script>
+</body>
+</html>
